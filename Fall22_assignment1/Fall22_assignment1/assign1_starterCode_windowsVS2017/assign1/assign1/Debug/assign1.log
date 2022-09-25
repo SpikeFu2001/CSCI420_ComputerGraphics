@@ -1,0 +1,4 @@
+﻿  assign1.cpp
+c:\users\chw93\dropbox\curriculum\ta\assign1\assign1\assign1.cpp(49): warning C4101: 'j': unreferenced local variable
+  assign1.vcxproj -> C:\Users\chw93\Dropbox\Curriculum\TA\assign1\Debug\assign1.exe
+  assign1.vcxproj -> C:\Users\chw93\Dropbox\Curriculum\TA\assign1\Debug\assign1.pdb (Partial PDB)
