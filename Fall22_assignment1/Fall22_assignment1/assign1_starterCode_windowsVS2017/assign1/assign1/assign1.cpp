@@ -4,7 +4,7 @@
 /*
   CSCI 420 Computer Graphics
   Assignment 1: Height Fields
-  <your name>
+  Spike Fu
 */
 
 #include "stdafx.h"
@@ -32,9 +32,18 @@ typedef enum
 
 CONTROLSTATE g_ControlState = ROTATE;
 
+typedef enum
+{
+  POINT_MODE,
+  LINE_MODE,
+  TRIANGLE_MODE
+} RENDERMODE;
+
+RENDERMODE g_RenderMode = POINT_MODE;
+
 /* state of the world */
 float g_vLandRotate[3] = {0.0, 0.0, 0.0};
-float g_vLandTranslate[3] = {0.0, 0.0, 0.0};
+float g_vLandTranslate[3] = {0.0, 0.0, 300.0};
 float g_vLandScale[3] = {1.0, 1.0, 1.0};
 
 CImg<unsigned char> *g_pHeightData;
@@ -74,28 +83,117 @@ void saveScreenshot(char *filename)
 void myinit()
 {
   /* setup gl view here */
+  // set background color
   glClearColor(0.0, 0.0, 0.0, 0.0);
+  // enable depth buffering
+  glEnable(GL_DEPTH_TEST);
+  // interpolate colors during rasterization
+  glShadeModel(GL_SMOOTH); // Color the vertices using some smooth gradient
+}
+
+struct Color
+{
+  unsigned char r, g, b;
+};
+
+/**
+ * interpolate 2 RGB colors
+ * @param color1    integer containing color as 0x00RRGGBB
+ * @param color2    integer containing color as 0x00RRGGBB
+ * @param fraction  how much interpolation (0..1)
+ * - 0: full color 1
+ * - 1: full color 2
+ * @return the new color after interpolation
+ */
+Color interpolate(int color1, int color2, float fraction)
+{
+  unsigned char r1 = (color1 >> 16) & 0xff;
+  unsigned char r2 = (color2 >> 16) & 0xff;
+  unsigned char g1 = (color1 >> 8) & 0xff;
+  unsigned char g2 = (color2 >> 8) & 0xff;
+  unsigned char b1 = color1 & 0xff;
+  unsigned char b2 = color2 & 0xff;
+
+  return {(unsigned char)((r2 - r1) * fraction + r1),
+          (unsigned char)((g2 - g1) * fraction + g1),
+          (unsigned char)((b2 - b1) * fraction + b1)};
+}
+
+int startColor = 0xFF66C4;
+int endColor = 0xFCEAF1;
+
+void heightmap()
+{
+  float offset_x = g_pHeightData->width() / -2.0;
+  float offset_y = g_pHeightData->height() / -2.0;
+
+  switch (g_RenderMode)
+  {
+  case POINT_MODE:
+    glBegin(GL_POINTS);
+    for (int i = 0; i < g_pHeightData->width(); i++)
+    {
+      for (int j = 0; j < g_pHeightData->height(); j++)
+      {
+        auto color = interpolate(startColor, endColor, ((*g_pHeightData)(i, j) / 256.0f));
+        glColor3f(color.r / 256.0f, color.g / 256.0f, color.b / 256.0f);
+        glVertex3f(offset_x + i, offset_y + j, (*g_pHeightData)(i, j));
+      }
+    }
+    glEnd();
+    break;
+  case LINE_MODE:
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    for (int i = 1; i < g_pHeightData->width(); i++)
+    {
+      glBegin(GL_TRIANGLE_STRIP);
+      for (int j = 0; j < g_pHeightData->height(); j++)
+      {
+        auto color = interpolate(startColor, endColor, ((*g_pHeightData)(i - 1, j) / 256.0f));
+        glColor3f(color.r / 256.0f, color.g / 256.0f, color.b / 256.0f);
+        glVertex3f(offset_x + (i - 1), offset_y + j, (*g_pHeightData)(i - 1, j));
+
+        color = interpolate(startColor, endColor, ((*g_pHeightData)(i, j) / 256.0f));
+        glColor3f(color.r / 256.0f, color.g / 256.0f, color.b / 256.0f);
+        glVertex3f(offset_x + i, offset_y + j, (*g_pHeightData)(i, j));
+      }
+      glEnd();
+    }
+    break;
+  case TRIANGLE_MODE:
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    for (int i = 1; i < g_pHeightData->width(); i++)
+    {
+      glBegin(GL_TRIANGLE_STRIP);
+      for (int j = 0; j < g_pHeightData->height(); j++)
+      {
+        auto color = interpolate(startColor, endColor, ((*g_pHeightData)(i - 1, j) / 256.0f));
+        glColor3f(color.r / 256.0f, color.g / 256.0f, color.b / 256.0f);
+        glVertex3f(offset_x + (i - 1), offset_y + j, (*g_pHeightData)(i - 1, j));
+
+        color = interpolate(startColor, endColor, ((*g_pHeightData)(i, j) / 256.0f));
+        glColor3f(color.r / 256.0f, color.g / 256.0f, color.b / 256.0f);
+        glVertex3f(offset_x + i, offset_y + j, (*g_pHeightData)(i, j));
+      }
+      glEnd();
+    }
+    break;
+  }
 }
 
 void display()
 {
-  /* draw 1x1 cube about origin */
-  /* replace this code with your height field implementation */
-  /* you may also want to precede it with your
-rotation/translation/scaling */
-
-  glBegin(GL_POLYGON);
-
-  glColor3f(1.0, 1.0, 1.0);
-  glVertex3f(-0.5, -0.5, 0.0);
-  glColor3f(0.0, 0.0, 1.0);
-  glVertex3f(-0.5, 0.5, 0.0);
-  glColor3f(0.0, 0.0, 0.0);
-  glVertex3f(0.5, 0.5, 0.0);
-  glColor3f(1.0, 1.0, 0.0);
-  glVertex3f(0.5, -0.5, 0.0);
-
-  glEnd();
+  glClear(GL_COLOR_BUFFER_BIT |
+          GL_DEPTH_BUFFER_BIT);
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity();
+  glTranslatef(-g_vLandTranslate[0], -g_vLandTranslate[1], -g_vLandTranslate[2]);
+  glRotatef(g_vLandRotate[0], 1.0, 0.0, 0.0);
+  glRotatef(g_vLandRotate[1], 0.0, 1.0, 0.0);
+  glRotatef(g_vLandRotate[2], 0.0, 0.0, 1.0);
+  glScalef(g_vLandScale[0], g_vLandScale[1], g_vLandScale[2]);
+  heightmap();
+  glutSwapBuffers();
 }
 
 void menufunc(int value)
@@ -111,7 +209,9 @@ void menufunc(int value)
 void doIdle()
 {
   /* do some stuff... */
-
+  // g_vLandRotate[0] += 0.05;
+  // if (g_vLandRotate[0] > 360.0)
+  //   g_vLandRotate[0] -= 360.0;
   /* make the screen update */
   glutPostRedisplay();
 }
@@ -127,23 +227,23 @@ void mousedrag(int x, int y)
   case TRANSLATE:
     if (g_iLeftMouseButton)
     {
-      g_vLandTranslate[0] += vMouseDelta[0] * 0.01;
-      g_vLandTranslate[1] -= vMouseDelta[1] * 0.01;
+      g_vLandTranslate[0] += vMouseDelta[0] * 0.1;
+      g_vLandTranslate[1] -= vMouseDelta[1] * 0.1;
     }
     if (g_iMiddleMouseButton)
     {
-      g_vLandTranslate[2] += vMouseDelta[1] * 0.01;
+      g_vLandTranslate[2] += vMouseDelta[1] * 0.1;
     }
     break;
   case ROTATE:
     if (g_iLeftMouseButton)
     {
-      g_vLandRotate[0] += vMouseDelta[1];
-      g_vLandRotate[1] += vMouseDelta[0];
+      g_vLandRotate[0] += vMouseDelta[1] * 2;
+      g_vLandRotate[1] += vMouseDelta[0] * 2;
     }
     if (g_iMiddleMouseButton)
     {
-      g_vLandRotate[2] += vMouseDelta[1];
+      g_vLandRotate[2] += vMouseDelta[1] * 2;
     }
     break;
   case SCALE:
@@ -201,6 +301,36 @@ void mousebutton(int button, int state, int x, int y)
   g_vMousePos[1] = y;
 }
 
+void keyboard(unsigned char key,
+              int x, int y)
+{
+  if (key == '1')
+  {
+    g_RenderMode = POINT_MODE;
+  }
+  else if (key == '2')
+  {
+    g_RenderMode = LINE_MODE;
+  }
+  else if (key == '3')
+  {
+    g_RenderMode = TRIANGLE_MODE;
+  }
+}
+
+void reshape(int w, int h)
+{
+  // setup image size
+  glViewport(0, 0, w, h);
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+
+  // setup camera
+  gluPerspective(70.0, 1.0 * w / h, 0.1, 1000.0);
+
+  glMatrixMode(GL_MODELVIEW);
+}
+
 int main(int argc, char *argv[])
 {
   // I've set the argv[1] to spiral.jpg.
@@ -231,16 +361,26 @@ int main(int argc, char *argv[])
       the code past here will segfault if you don't have a window set up....
       replace the exit once you add those calls.
   */
-  exit(0);
+  // request double buffer
+  glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH | GLUT_RGBA);
+  glEnable(GL_DEPTH_TEST);
 
-  /* tells glut to use a particular display function to redraw */
-  glutDisplayFunc(display);
-
+  // set window size
+  glutInitWindowSize(500, 500);
+  // set window position
+  glutInitWindowPosition(0, 0);
+  // creates a window
+  glutCreateWindow("Spike's Window");
   /* allow the user to quit using the right mouse button menu */
   g_iMenuId = glutCreateMenu(menufunc);
   glutSetMenu(g_iMenuId);
   glutAddMenuEntry("Quit", 0);
   glutAttachMenu(GLUT_RIGHT_BUTTON);
+  // called every time window is resized to
+  // update projection matrix
+  glutReshapeFunc(reshape);
+  /* tells glut to use a particular display function to redraw */
+  glutDisplayFunc(display);
 
   /* replace with any animate code */
   glutIdleFunc(doIdle);
@@ -251,6 +391,8 @@ int main(int argc, char *argv[])
   glutPassiveMotionFunc(mouseidle);
   /* callback for mouse button changes */
   glutMouseFunc(mousebutton);
+  /* callback for keyboard changes */
+  glutKeyboardFunc(keyboard);
 
   /* do initialization */
   myinit();
