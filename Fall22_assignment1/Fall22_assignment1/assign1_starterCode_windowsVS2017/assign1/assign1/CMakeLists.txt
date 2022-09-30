@@ -60,6 +60,12 @@ if("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "win32")
             "${CMAKE_CURRENT_SOURCE_DIR}/picLibrary"
         ">"
     )
+    target_include_directories(${PROJECT_NAME} PUBLIC
+        "$<$<CONFIG:Release>:"
+            "${CMAKE_CURRENT_SOURCE_DIR}/glut-3.7.6-bin;"
+            "${CMAKE_CURRENT_SOURCE_DIR}/picLibrary"
+        ">"
+    )
 elseif("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "x64")
     target_include_directories(${PROJECT_NAME} PUBLIC
         "$<$<CONFIG:Debug>:"
@@ -193,9 +199,21 @@ if("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "win32")
             "${CMAKE_CURRENT_SOURCE_DIR}/glut-3.7.6-bin"
         ">"
     )
+    target_link_directories(${PROJECT_NAME} PRIVATE
+        "$<$<CONFIG:Release>:"
+            "${CMAKE_CURRENT_SOURCE_DIR}/picLibrary;"
+            "${CMAKE_CURRENT_SOURCE_DIR}/glut-3.7.6-bin"
+        ">"
+    )
 elseif("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "x64")
     target_link_directories(${PROJECT_NAME} PRIVATE
         "$<$<CONFIG:Debug>:"
+            "${CMAKE_CURRENT_SOURCE_DIR}/picLibrary;"
+            "${CMAKE_CURRENT_SOURCE_DIR}/glut-3.7.6-bin"
+        ">"
+    )
+    target_link_directories(${PROJECT_NAME} PRIVATE
+        "$<$<CONFIG:Release>:"
             "${CMAKE_CURRENT_SOURCE_DIR}/picLibrary;"
             "${CMAKE_CURRENT_SOURCE_DIR}/glut-3.7.6-bin"
         ">"

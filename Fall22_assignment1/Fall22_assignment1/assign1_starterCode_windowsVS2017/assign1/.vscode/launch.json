@@ -8,7 +8,7 @@
             // Resolved by CMake Tools:
             "program": "${command:cmake.launchTargetPath}",
             "args": [
-                "assign1/GrandTeton-768.jpg"
+                "assign1/SantaMonicaMountains-768.jpg"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
