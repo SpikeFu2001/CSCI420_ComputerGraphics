@@ -38,8 +38,8 @@ cv::Mat3b skyImage;
 GLuint groundTextureID = 1;
 GLuint skyTextureID = 2;
 
-GLubyte ground[4096][4096][3];
-GLubyte sky[4096][8192][3];
+GLubyte groundBuffer[4096][4096][3];
+GLubyte skyBuffer[4096][8192][3];
 
 int loadSplines(char *argv)
 {
@@ -162,6 +162,35 @@ int readImage(char *filename, cv::Mat3b &image, bool displayOn)
 	return 0;
 }
 
+point T;
+point N;
+point B;
+point oldT;
+point oldN;
+point oldB;
+
+void CameraNormalInit()
+{
+	point V = {0, 0.0, -1};
+	T = Catmull(g_Splines[0].points[0], g_Splines[0].points[1], g_Splines[0].points[2], g_Splines[0].points[3]).GetNormalizedTangent(0.0);
+	N = point::CrossProduct(T, V);
+	N.Normalize();
+	B = point::CrossProduct(T, N);
+	B.Normalize();
+}
+
+void UpdateNormal(double t, class Catmull &catmull)
+{
+	oldT = T;
+	oldN = N;
+	oldB = B;
+	T = catmull.GetNormalizedTangent(t);
+	N = point::CrossProduct(oldB, T);
+	N.Normalize();
+	B = point::CrossProduct(T, N);
+	B.Normalize();
+}
+
 void GroundTextureInit()
 {
 	readImage("ground.jpg", groundImage, false);
@@ -174,9 +203,9 @@ void GroundTextureInit()
 				unsigned char blue = getPixelValue(groundImage, c, r, 0);
 				unsigned char green = getPixelValue(groundImage, c, r, 1);
 				unsigned char red = getPixelValue(groundImage, c, r, 2);
-				ground[r][c][0] = red;
-				ground[r][c][1] = green;
-				ground[r][c][2] = blue;
+				groundBuffer[r][c][0] = red;
+				groundBuffer[r][c][1] = green;
+				groundBuffer[r][c][2] = blue;
 			}
 		}
 	}
@@ -190,7 +219,7 @@ void GroundTextureInit()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, groundImage.cols, groundImage.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, ground);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, groundImage.cols, groundImage.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, groundBuffer);
 }
 
 void SkyTextureInit()
@@ -205,9 +234,9 @@ void SkyTextureInit()
 				unsigned char blue = getPixelValue(skyImage, c, r, 0);
 				unsigned char green = getPixelValue(skyImage, c, r, 1);
 				unsigned char red = getPixelValue(skyImage, c, r, 2);
-				sky[r][c][0] = red;
-				sky[r][c][1] = green;
-				sky[r][c][2] = blue;
+				skyBuffer[r][c][0] = red;
+				skyBuffer[r][c][1] = green;
+				skyBuffer[r][c][2] = blue;
 			}
 		}
 	}
@@ -220,7 +249,7 @@ void SkyTextureInit()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, skyImage.cols, skyImage.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, sky);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, skyImage.cols, skyImage.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, skyBuffer);
 }
 
 void myinit()
@@ -235,6 +264,7 @@ void myinit()
 	GroundTextureInit();
 	SkyTextureInit();
 	trackRenderer.InitializeRenderer(g_Splines[0], groundTextureID, skyTextureID);
+	CameraNormalInit();
 }
 
 void RenderWorld()
@@ -276,7 +306,7 @@ void UpdateCamera()
 		currentCatmull = Catmull(g_Splines[0].points[segmentI + 0], g_Splines[0].points[segmentI + 1], g_Splines[0].points[segmentI + 2], g_Splines[0].points[segmentI + 3]);
 	}
 	auto eye = currentCatmull.GetPoint(t);
-	auto T = currentCatmull.GetNormalizedTangent(t);
+	UpdateNormal(t, currentCatmull);
 	gluLookAt(eye.x, eye.y, eye.z, T.x + eye.x, T.y + eye.y, T.z + eye.z, 0, 0, 1);
 }
 

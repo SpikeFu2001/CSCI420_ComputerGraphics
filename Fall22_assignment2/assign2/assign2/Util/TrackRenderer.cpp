@@ -24,7 +24,6 @@ void TrackRenderer::InitializeRenderer(struct spline spline, GLuint groundTextur
 void TrackRenderer::Render()
 {
     glCallList(trackGlList);
-
     RenderGround();
     RenderSky();
 }
