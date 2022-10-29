@@ -2,7 +2,7 @@
 
 #include <math.h>
 
-struct point
+struct Vec3
 {
     double x;
     double y;
@@ -18,9 +18,9 @@ struct point
         y /= len;
         z /= len;
     }
-    static point CrossProduct(point &p1, point &p2)
+    static Vec3 CrossProduct(Vec3 &p1, Vec3 &p2)
     {
-        point c;
+        Vec3 c;
         c.x = p1.y * p2.z - p1.z * p2.y;
         c.y = p1.z * p2.x - p1.x * p2.z;
         c.z = p1.x * p2.y - p1.y * p2.x;
@@ -31,5 +31,5 @@ struct point
 struct spline
 {
     int numControlPoints;
-    struct point *points;
+    struct Vec3 *points;
 };

@@ -6,12 +6,13 @@ void TrackRenderer::InitializeRenderer(struct spline spline, GLuint groundTextur
 {
     this->groundTextureID = groundTextureID;
     this->skyTextureID = skyTextureID;
-    point V = {0, 0.0, -1};
+    Vec3 V = {0, 0.0, -1};
     T = Catmull(spline.points[0], spline.points[1], spline.points[2], spline.points[3]).GetNormalizedTangent(0.0);
-    N = point::CrossProduct(T, V);
+    N = Vec3::CrossProduct(T, V);
     N.Normalize();
-    B = point::CrossProduct(T, N);
+    B = Vec3::CrossProduct(T, N);
     B.Normalize();
+
     trackGlList = glGenLists(1);
     glNewList(trackGlList, GL_COMPILE);
     for (int i = 0; i < spline.numControlPoints - 3; i += 1)
@@ -19,16 +20,21 @@ void TrackRenderer::InitializeRenderer(struct spline spline, GLuint groundTextur
         DrawSpline(spline.points[i + 0], spline.points[i + 1], spline.points[i + 2], spline.points[i + 3]);
     }
     glEndList();
+
+    enviromentGlList = glGenLists(1);
+    glNewList(enviromentGlList, GL_COMPILE);
+    RenderGround();
+    RenderSky();
+    glEndList();
 }
 
 void TrackRenderer::Render()
 {
     glCallList(trackGlList);
-    RenderGround();
-    RenderSky();
+    glCallList(enviromentGlList);
 }
 
-void TrackRenderer::DrawSpline(point &a, point &b, point &c, point &d)
+void TrackRenderer::DrawSpline(Vec3 &a, Vec3 &b, Vec3 &c, Vec3 &d)
 {
     Catmull catmull(a, b, c, d);
     auto p1 = catmull.GetPoint(0);
@@ -57,13 +63,13 @@ void TrackRenderer::UpdateNormal(double t, class Catmull &catmull)
     oldN = N;
     oldB = B;
     T = catmull.GetNormalizedTangent(t);
-    N = point::CrossProduct(oldB, T);
+    N = Vec3::CrossProduct(oldB, T);
     N.Normalize();
-    B = point::CrossProduct(T, N);
+    B = Vec3::CrossProduct(T, N);
     B.Normalize();
 }
 
-void TrackRenderer::DrawCube(point &a, point &b, point &c, point &d, point &e, point &f, point &g, point &h)
+void TrackRenderer::DrawCube(Vec3 &a, Vec3 &b, Vec3 &c, Vec3 &d, Vec3 &e, Vec3 &f, Vec3 &g, Vec3 &h)
 {
     glColor3d(0, 0, 0);
     DrawFace(a, c, d, b);
@@ -76,7 +82,7 @@ void TrackRenderer::DrawCube(point &a, point &b, point &c, point &d, point &e, p
     glColor3d(1, 1, 1);
 }
 
-void TrackRenderer::DrawFace(point &a, point &b, point &c, point &d)
+void TrackRenderer::DrawFace(Vec3 &a, Vec3 &b, Vec3 &c, Vec3 &d)
 {
     glBegin(GL_POLYGON);
     DrawVertex(a);
@@ -86,12 +92,12 @@ void TrackRenderer::DrawFace(point &a, point &b, point &c, point &d)
     glEnd();
 }
 
-void TrackRenderer::DrawVertex(point &a)
+void TrackRenderer::DrawVertex(Vec3 &a)
 {
     glVertex3d(a.x, a.y, a.z);
 }
 
-void TrackRenderer::DrawOneBar(point p1, point p2, double width, double height)
+void TrackRenderer::DrawOneBar(Vec3 p1, Vec3 p2, double width, double height)
 {
     p1 = {
         p1.x - 0.1 * oldB.x,
@@ -103,42 +109,42 @@ void TrackRenderer::DrawOneBar(point p1, point p2, double width, double height)
         p2.y - 0.1 * B.y,
         p2.z - 0.1 * B.z,
     };
-    point a = {
+    Vec3 a = {
         p1.x + width * oldB.x - height * oldN.x,
         p1.y + width * oldB.y - height * oldN.y,
         p1.z + width * oldB.z - height * oldN.z,
     };
-    point b = {
+    Vec3 b = {
         p1.x + width * oldB.x + height * oldN.x,
         p1.y + width * oldB.y + height * oldN.y,
         p1.z + width * oldB.z + height * oldN.z,
     };
-    point c = {
+    Vec3 c = {
         p1.x - width * oldB.x - height * oldN.x,
         p1.y - width * oldB.y - height * oldN.y,
         p1.z - width * oldB.z - height * oldN.z,
     };
-    point d = {
+    Vec3 d = {
         p1.x - width * oldB.x + height * oldN.x,
         p1.y - width * oldB.y + height * oldN.y,
         p1.z - width * oldB.z + height * oldN.z,
     };
-    point e = {
+    Vec3 e = {
         p2.x + width * B.x - height * N.x,
         p2.y + width * B.y - height * N.y,
         p2.z + width * B.z - height * N.z,
     };
-    point f = {
+    Vec3 f = {
         p2.x + width * B.x + height * N.x,
         p2.y + width * B.y + height * N.y,
         p2.z + width * B.z + height * N.z,
     };
-    point g = {
+    Vec3 g = {
         p2.x - width * B.x - height * N.x,
         p2.y - width * B.y - height * N.y,
         p2.z - width * B.z - height * N.z,
     };
-    point h = {
+    Vec3 h = {
         p2.x - width * B.x + height * N.x,
         p2.y - width * B.y + height * N.y,
         p2.z - width * B.z + height * N.z,

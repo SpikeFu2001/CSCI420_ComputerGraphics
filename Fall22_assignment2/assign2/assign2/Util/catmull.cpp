@@ -1,7 +1,7 @@
 #include "catmull.h"
 #include "point.h"
 #include <math.h>
-Catmull::Catmull(point& p1, point& p2, point& p3, point& p4, double s)
+Catmull::Catmull(Vec3 &p1, Vec3 &p2, Vec3 &p3, Vec3 &p4, double s)
 {
 	m[0][0] = -s * p1.x + (2 - s) * p2.x + (s - 2) * p3.x + s * p4.x;
 	m[0][1] = -s * p1.y + (2 - s) * p2.y + (s - 2) * p3.y + s * p4.y;
@@ -20,7 +20,7 @@ Catmull::Catmull(point& p1, point& p2, point& p3, point& p4, double s)
 	m[3][2] = p2.z;
 }
 
-point Catmull::GetPoint(double t)
+Vec3 Catmull::GetPoint(double t)
 {
 	double u[4];
 	u[0] = t * t * t;
@@ -31,10 +31,10 @@ point Catmull::GetPoint(double t)
 	double ans[3];
 	Mult(u, m, ans);
 
-	return { ans[0], ans[1], ans[2] };
+	return {ans[0], ans[1], ans[2]};
 }
 
-point Catmull::GetNormalizedTangent(double t)
+Vec3 Catmull::GetNormalizedTangent(double t)
 {
 	double u[4];
 	u[0] = 3 * t * t;
@@ -51,7 +51,7 @@ point Catmull::GetNormalizedTangent(double t)
 	len += ans[2] * ans[2];
 	len = sqrt(len);
 
-	return { ans[0] / len, ans[1] / len, ans[2] / len };
+	return {ans[0] / len, ans[1] / len, ans[2] / len};
 }
 
 void Catmull::Mult(double u[4], double m[][3], double res[3])

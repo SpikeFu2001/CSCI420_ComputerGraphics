@@ -25,7 +25,7 @@ extern "C"
 	_declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 }
 
-struct spline* g_Splines;
+struct spline *g_Splines;
 
 int g_iNumOfSplines;
 
@@ -37,11 +37,11 @@ GLuint skyTextureID = 2;
 GLubyte groundBuffer[4096][4096][3];
 GLubyte skyBuffer[4096][8192][3];
 
-int loadSplines(char* argv)
+int loadSplines(char *argv)
 {
-	char* cName = (char*)malloc(128 * sizeof(char));
-	FILE* fileList;
-	FILE* fileSpline;
+	char *cName = (char *)malloc(128 * sizeof(char));
+	FILE *fileList;
+	FILE *fileSpline;
 	int iType, i = 0, j, iLength;
 
 	/* load the track file */
@@ -55,7 +55,7 @@ int loadSplines(char* argv)
 	/* stores the number of splines in a global variable */
 	fscanf(fileList, "%d", &g_iNumOfSplines);
 	printf("%d\n", g_iNumOfSplines);
-	g_Splines = (struct spline*)malloc(g_iNumOfSplines * sizeof(struct spline));
+	g_Splines = (struct spline *)malloc(g_iNumOfSplines * sizeof(struct spline));
 
 	/* reads through the spline files */
 	for (j = 0; j < g_iNumOfSplines; j++)
@@ -74,14 +74,14 @@ int loadSplines(char* argv)
 		fscanf(fileSpline, "%d %d", &iLength, &iType);
 
 		/* allocate memory for all the points */
-		g_Splines[j].points = (struct point*)malloc(iLength * sizeof(struct point));
+		g_Splines[j].points = (struct Vec3 *)malloc(iLength * sizeof(struct Vec3));
 		g_Splines[j].numControlPoints = iLength;
 
 		/* saves the data to the struct */
 		while (fscanf(fileSpline, "%lf %lf %lf",
-			&g_Splines[j].points[i].x,
-			&g_Splines[j].points[i].y,
-			&g_Splines[j].points[i].z) != EOF)
+					  &g_Splines[j].points[i].x,
+					  &g_Splines[j].points[i].y,
+					  &g_Splines[j].points[i].z) != EOF)
 		{
 			i++;
 		}
@@ -93,7 +93,7 @@ int loadSplines(char* argv)
 }
 
 /* Write a screenshot to the specified filename */
-void saveScreenshot(char* filename)
+void saveScreenshot(char *filename)
 {
 	if (filename == NULL)
 		return;
@@ -111,9 +111,9 @@ void saveScreenshot(char* filename)
 	cv::flip(bufferRGB, bufferRGB, 0);
 	// convert RGB to BGR
 	cv::Mat3b bufferBGR(bufferRGB.rows, bufferRGB.cols, CV_8UC3);
-	cv::Mat3b out[] = { bufferBGR };
+	cv::Mat3b out[] = {bufferBGR};
 	// rgb[0] -> bgr[2], rgba[1] -> bgr[1], rgb[2] -> bgr[0]
-	int from_to[] = { 0, 2, 1, 1, 2, 0 };
+	int from_to[] = {0, 2, 1, 1, 2, 0};
 	mixChannels(&bufferRGB, 1, out, 1, from_to, 3);
 
 	if (cv::imwrite(filename, bufferBGR))
@@ -132,7 +132,7 @@ This means that:
 chan = 0 returns BLUE,
 chan = 1 returns GREEN,
 chan = 2 returns RED. */
-unsigned char getPixelValue(cv::Mat3b& image, int x, int y, int chan)
+unsigned char getPixelValue(cv::Mat3b &image, int x, int y, int chan)
 {
 	return image.at<cv::Vec3b>(y, x)[chan];
 }
@@ -140,7 +140,7 @@ unsigned char getPixelValue(cv::Mat3b& image, int x, int y, int chan)
 /* Read an image into memory.
 Set argument displayOn to true to make sure images are loaded correctly.
 One image loaded, set to false so it doesn't interfere with OpenGL window.*/
-int readImage(char* filename, cv::Mat3b& image, bool displayOn)
+int readImage(char *filename, cv::Mat3b &image, bool displayOn)
 {
 	std::cout << "reading image: " << filename << std::endl;
 	image = cv::imread(filename);
@@ -158,48 +158,48 @@ int readImage(char* filename, cv::Mat3b& image, bool displayOn)
 	return 0;
 }
 
-point T;
-point N;
-point B;
-point oldT;
-point oldN;
-point oldB;
+Vec3 T;
+Vec3 N;
+Vec3 B;
+Vec3 oldT;
+Vec3 oldN;
+Vec3 oldB;
 
 void CameraNormalInit()
 {
-	point V = { 0, 0.0, -1 };
+	Vec3 V = {0, 0.0, -1};
 	T = Catmull(g_Splines[0].points[0], g_Splines[0].points[1], g_Splines[0].points[2], g_Splines[0].points[3]).GetNormalizedTangent(0.0);
-	N = point::CrossProduct(T, V);
+	N = Vec3::CrossProduct(T, V);
 	N.Normalize();
-	B = point::CrossProduct(T, N);
+	B = Vec3::CrossProduct(T, N);
 	B.Normalize();
 }
 
-void UpdateNormal(double t, class Catmull& catmull)
+void UpdateNormal(double t, class Catmull &catmull)
 {
 	oldT = T;
 	oldN = N;
 	oldB = B;
 	T = catmull.GetNormalizedTangent(t);
-	N = point::CrossProduct(oldB, T);
+	N = Vec3::CrossProduct(oldB, T);
 	N.Normalize();
-	B = point::CrossProduct(T, N);
+	B = Vec3::CrossProduct(T, N);
 	B.Normalize();
 }
 
 void GroundTextureInit()
 {
-	cv::Mat3b groundImage;
-	readImage("ground.jpg", groundImage, false);
-	for (int r = 0; r < groundImage.rows; r++)
+	cv::Mat3b img;
+	readImage("ground.jpg", img, false);
+	for (int r = 0; r < img.rows; r++)
 	{ // y-coordinate
-		for (int c = 0; c < groundImage.cols; c++)
+		for (int c = 0; c < img.cols; c++)
 		{ // x-coordinate
 			for (int channel = 0; channel < 3; channel++)
 			{
-				unsigned char blue = getPixelValue(groundImage, c, r, 0);
-				unsigned char green = getPixelValue(groundImage, c, r, 1);
-				unsigned char red = getPixelValue(groundImage, c, r, 2);
+				unsigned char blue = getPixelValue(img, c, r, 0);
+				unsigned char green = getPixelValue(img, c, r, 1);
+				unsigned char red = getPixelValue(img, c, r, 2);
 				groundBuffer[r][c][0] = red;
 				groundBuffer[r][c][1] = green;
 				groundBuffer[r][c][2] = blue;
@@ -216,22 +216,22 @@ void GroundTextureInit()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, groundImage.cols, groundImage.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, groundBuffer);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, img.cols, img.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, groundBuffer);
 }
 
 void SkyTextureInit()
 {
-	cv::Mat3b skyImage;
-	readImage("sky.jpg", skyImage, false);
-	for (int r = 0; r < skyImage.rows; r++)
+	cv::Mat3b img;
+	readImage("sky.jpg", img, false);
+	for (int r = 0; r < img.rows; r++)
 	{ // y-coordinate
-		for (int c = 0; c < skyImage.cols; c++)
+		for (int c = 0; c < img.cols; c++)
 		{ // x-coordinate
 			for (int channel = 0; channel < 3; channel++)
 			{
-				unsigned char blue = getPixelValue(skyImage, c, r, 0);
-				unsigned char green = getPixelValue(skyImage, c, r, 1);
-				unsigned char red = getPixelValue(skyImage, c, r, 2);
+				unsigned char blue = getPixelValue(img, c, r, 0);
+				unsigned char green = getPixelValue(img, c, r, 1);
+				unsigned char red = getPixelValue(img, c, r, 2);
 				skyBuffer[r][c][0] = red;
 				skyBuffer[r][c][1] = green;
 				skyBuffer[r][c][2] = blue;
@@ -247,7 +247,7 @@ void SkyTextureInit()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, skyImage.cols, skyImage.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, skyBuffer);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, img.cols, img.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, skyBuffer);
 }
 
 void myinit()
@@ -338,7 +338,7 @@ void doIdle()
 	glutPostRedisplay();
 }
 
-int _tmain(int argc, _TCHAR* argv[])
+int _tmain(int argc, _TCHAR *argv[])
 {
 	if (argc < 2)
 	{
@@ -346,9 +346,9 @@ int _tmain(int argc, _TCHAR* argv[])
 		exit(0);
 	}
 
-	loadSplines((char*)argv[1]);
+	loadSplines((char *)argv[1]);
 
-	glutInit(&argc, (char**)argv);
+	glutInit(&argc, (char **)argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH | GLUT_RGBA);
 
 	glutInitWindowSize(640, 480);
