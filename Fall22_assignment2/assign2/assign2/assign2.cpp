@@ -31,10 +31,6 @@ int g_iNumOfSplines;
 
 TrackRenderer trackRenderer;
 
-/* Object where you can load an image */
-cv::Mat3b groundImage;
-cv::Mat3b skyImage;
-
 GLuint groundTextureID = 1;
 GLuint skyTextureID = 2;
 
@@ -193,6 +189,7 @@ void UpdateNormal(double t, class Catmull &catmull)
 
 void GroundTextureInit()
 {
+	cv::Mat3b groundImage;
 	readImage("ground.jpg", groundImage, false);
 	for (int r = 0; r < groundImage.rows; r++)
 	{ // y-coordinate
@@ -224,6 +221,7 @@ void GroundTextureInit()
 
 void SkyTextureInit()
 {
+	cv::Mat3b skyImage;
 	readImage("sky.jpg", skyImage, false);
 	for (int r = 0; r < skyImage.rows; r++)
 	{ // y-coordinate
@@ -307,7 +305,7 @@ void UpdateCamera()
 	}
 	auto eye = currentCatmull.GetPoint(t);
 	UpdateNormal(t, currentCatmull);
-	gluLookAt(eye.x, eye.y, eye.z, T.x + eye.x, T.y + eye.y, T.z + eye.z, 0, 0, 1);
+	gluLookAt(eye.x, eye.y, eye.z, T.x + eye.x, T.y + eye.y, T.z + eye.z, B.x, B.y, B.z);
 }
 
 void display()
