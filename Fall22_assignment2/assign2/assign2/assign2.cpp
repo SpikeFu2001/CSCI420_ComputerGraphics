@@ -25,7 +25,7 @@ extern "C"
 	_declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 }
 
-struct spline *g_Splines;
+struct spline* g_Splines;
 
 int g_iNumOfSplines;
 
@@ -37,11 +37,11 @@ GLuint skyTextureID = 2;
 GLubyte groundBuffer[4096][4096][3];
 GLubyte skyBuffer[4096][8192][3];
 
-int loadSplines(char *argv)
+int loadSplines(char* argv)
 {
-	char *cName = (char *)malloc(128 * sizeof(char));
-	FILE *fileList;
-	FILE *fileSpline;
+	char* cName = (char*)malloc(128 * sizeof(char));
+	FILE* fileList;
+	FILE* fileSpline;
 	int iType, i = 0, j, iLength;
 
 	/* load the track file */
@@ -55,7 +55,7 @@ int loadSplines(char *argv)
 	/* stores the number of splines in a global variable */
 	fscanf(fileList, "%d", &g_iNumOfSplines);
 	printf("%d\n", g_iNumOfSplines);
-	g_Splines = (struct spline *)malloc(g_iNumOfSplines * sizeof(struct spline));
+	g_Splines = (struct spline*)malloc(g_iNumOfSplines * sizeof(struct spline));
 
 	/* reads through the spline files */
 	for (j = 0; j < g_iNumOfSplines; j++)
@@ -74,14 +74,14 @@ int loadSplines(char *argv)
 		fscanf(fileSpline, "%d %d", &iLength, &iType);
 
 		/* allocate memory for all the points */
-		g_Splines[j].points = (struct point *)malloc(iLength * sizeof(struct point));
+		g_Splines[j].points = (struct point*)malloc(iLength * sizeof(struct point));
 		g_Splines[j].numControlPoints = iLength;
 
 		/* saves the data to the struct */
 		while (fscanf(fileSpline, "%lf %lf %lf",
-					  &g_Splines[j].points[i].x,
-					  &g_Splines[j].points[i].y,
-					  &g_Splines[j].points[i].z) != EOF)
+			&g_Splines[j].points[i].x,
+			&g_Splines[j].points[i].y,
+			&g_Splines[j].points[i].z) != EOF)
 		{
 			i++;
 		}
@@ -93,7 +93,7 @@ int loadSplines(char *argv)
 }
 
 /* Write a screenshot to the specified filename */
-void saveScreenshot(char *filename)
+void saveScreenshot(char* filename)
 {
 	if (filename == NULL)
 		return;
@@ -111,9 +111,9 @@ void saveScreenshot(char *filename)
 	cv::flip(bufferRGB, bufferRGB, 0);
 	// convert RGB to BGR
 	cv::Mat3b bufferBGR(bufferRGB.rows, bufferRGB.cols, CV_8UC3);
-	cv::Mat3b out[] = {bufferBGR};
+	cv::Mat3b out[] = { bufferBGR };
 	// rgb[0] -> bgr[2], rgba[1] -> bgr[1], rgb[2] -> bgr[0]
-	int from_to[] = {0, 2, 1, 1, 2, 0};
+	int from_to[] = { 0, 2, 1, 1, 2, 0 };
 	mixChannels(&bufferRGB, 1, out, 1, from_to, 3);
 
 	if (cv::imwrite(filename, bufferBGR))
@@ -132,7 +132,7 @@ This means that:
 chan = 0 returns BLUE,
 chan = 1 returns GREEN,
 chan = 2 returns RED. */
-unsigned char getPixelValue(cv::Mat3b &image, int x, int y, int chan)
+unsigned char getPixelValue(cv::Mat3b& image, int x, int y, int chan)
 {
 	return image.at<cv::Vec3b>(y, x)[chan];
 }
@@ -140,7 +140,7 @@ unsigned char getPixelValue(cv::Mat3b &image, int x, int y, int chan)
 /* Read an image into memory.
 Set argument displayOn to true to make sure images are loaded correctly.
 One image loaded, set to false so it doesn't interfere with OpenGL window.*/
-int readImage(char *filename, cv::Mat3b &image, bool displayOn)
+int readImage(char* filename, cv::Mat3b& image, bool displayOn)
 {
 	std::cout << "reading image: " << filename << std::endl;
 	image = cv::imread(filename);
@@ -167,7 +167,7 @@ point oldB;
 
 void CameraNormalInit()
 {
-	point V = {0, 0.0, -1};
+	point V = { 0, 0.0, -1 };
 	T = Catmull(g_Splines[0].points[0], g_Splines[0].points[1], g_Splines[0].points[2], g_Splines[0].points[3]).GetNormalizedTangent(0.0);
 	N = point::CrossProduct(T, V);
 	N.Normalize();
@@ -175,7 +175,7 @@ void CameraNormalInit()
 	B.Normalize();
 }
 
-void UpdateNormal(double t, class Catmull &catmull)
+void UpdateNormal(double t, class Catmull& catmull)
 {
 	oldT = T;
 	oldN = N;
@@ -338,7 +338,7 @@ void doIdle()
 	glutPostRedisplay();
 }
 
-int _tmain(int argc, _TCHAR *argv[])
+int _tmain(int argc, _TCHAR* argv[])
 {
 	if (argc < 2)
 	{
@@ -346,9 +346,9 @@ int _tmain(int argc, _TCHAR *argv[])
 		exit(0);
 	}
 
-	loadSplines((char *)argv[1]);
+	loadSplines((char*)argv[1]);
 
-	glutInit(&argc, (char **)argv);
+	glutInit(&argc, (char**)argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH | GLUT_RGBA);
 
 	glutInitWindowSize(640, 480);
