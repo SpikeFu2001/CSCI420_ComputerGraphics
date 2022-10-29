@@ -326,7 +326,7 @@ void reshape(int w, int h)
   glLoadIdentity();
 
   // setup camera
-  gluPerspective(70.0, 1.0 * w / h, 0.1, 1000.0);
+  gluPerspective(70.0, 1.0 * w / h, 0.1, 10000.0);
 
   glMatrixMode(GL_MODELVIEW);
 }
