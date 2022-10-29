@@ -300,6 +300,7 @@ void UpdateCamera()
 		if (segmentI >= g_Splines[0].numControlPoints - 3)
 		{
 			finished = true;
+			return;
 		}
 		else
 		{
