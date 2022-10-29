@@ -29,7 +29,7 @@ point Catmull::GetPoint(double t)
     u[3] = 1;
 
     double ans[4];
-    MatrixMulti(u, m, ans);
+    Mult(u, m, ans);
 
     return {ans[0], ans[1], ans[2]};
 }
@@ -43,7 +43,7 @@ point Catmull::GetNormalizedTangent(double t)
     u[3] = 0;
 
     double ans[4];
-    MatrixMulti(u, m, ans);
+    Mult(u, m, ans);
 
     double len = 0.0;
     len += ans[0] * ans[0];
@@ -53,4 +53,12 @@ point Catmull::GetNormalizedTangent(double t)
     len = sqrt(len);
 
     return {ans[0] / len, ans[1] / len, ans[2] / len};
+}
+
+void Catmull::Mult(double u[4], double m[][3], double res[4])
+{
+    res[0] = u[0] * m[0][0] + u[1] * m[1][0] + u[2] * m[2][0] + u[3] * m[3][0];
+    res[1] = u[0] * m[0][1] + u[1] * m[1][1] + u[2] * m[2][1] + u[3] * m[3][1];
+    res[2] = u[0] * m[0][2] + u[1] * m[1][2] + u[2] * m[2][2] + u[3] * m[3][2];
+    res[3] = u[0] * m[0][3] + u[1] * m[1][3] + u[2] * m[2][3] + u[3] * m[3][3];
 }

@@ -17,6 +17,14 @@
 #include "Util/catmull.h"
 #include "Util/TrackRenderer.h"
 
+// enable optimus!
+// use discrete GPU if possible
+extern "C"
+{
+	_declspec(dllexport) DWORD NvOptimusEnablement = 1;
+	_declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+}
+
 struct spline *g_Splines;
 
 int g_iNumOfSplines;
@@ -24,8 +32,14 @@ int g_iNumOfSplines;
 TrackRenderer trackRenderer;
 
 /* Object where you can load an image */
-cv::Mat3b groundTextureIMG;
-cv::Mat3b skyTextureIMG;
+cv::Mat3b groundImage;
+cv::Mat3b skyImage;
+
+GLuint groundTextureID = 1;
+GLuint skyTextureID = 2;
+
+GLubyte ground[4096][4096][3];
+GLubyte sky[4096][8192][3];
 
 int loadSplines(char *argv)
 {
@@ -148,24 +162,18 @@ int readImage(char *filename, cv::Mat3b &image, bool displayOn)
 	return 0;
 }
 
-GLuint groundTexture = 1;
-GLuint skyTexture = 2;
-
-GLubyte ground[2160][3840][3];
-GLubyte sky[4096][8192][3];
-
-void groundInit()
+void GroundTextureInit()
 {
-	readImage("ground.jpg", groundTextureIMG, false);
-	for (int r = 0; r < groundTextureIMG.rows; r++)
+	readImage("ground.jpg", groundImage, false);
+	for (int r = 0; r < groundImage.rows; r++)
 	{ // y-coordinate
-		for (int c = 0; c < groundTextureIMG.cols; c++)
+		for (int c = 0; c < groundImage.cols; c++)
 		{ // x-coordinate
 			for (int channel = 0; channel < 3; channel++)
 			{
-				unsigned char blue = getPixelValue(groundTextureIMG, c, r, 0);
-				unsigned char green = getPixelValue(groundTextureIMG, c, r, 1);
-				unsigned char red = getPixelValue(groundTextureIMG, c, r, 2);
+				unsigned char blue = getPixelValue(groundImage, c, r, 0);
+				unsigned char green = getPixelValue(groundImage, c, r, 1);
+				unsigned char red = getPixelValue(groundImage, c, r, 2);
 				ground[r][c][0] = red;
 				ground[r][c][1] = green;
 				ground[r][c][2] = blue;
@@ -173,8 +181,8 @@ void groundInit()
 		}
 	}
 
-	glGenTextures(1, &groundTexture);
-	glBindTexture(GL_TEXTURE_2D, groundTexture);
+	glGenTextures(1, &groundTextureID);
+	glBindTexture(GL_TEXTURE_2D, groundTextureID);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -182,29 +190,29 @@ void groundInit()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, groundTextureIMG.cols, groundTextureIMG.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, ground);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, groundImage.cols, groundImage.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, ground);
 }
 
-void skyInit()
+void SkyTextureInit()
 {
-	readImage("sky.jpg", skyTextureIMG, false);
-	for (int r = 0; r < skyTextureIMG.rows; r++)
+	readImage("sky.jpg", skyImage, false);
+	for (int r = 0; r < skyImage.rows; r++)
 	{ // y-coordinate
-		for (int c = 0; c < skyTextureIMG.cols; c++)
+		for (int c = 0; c < skyImage.cols; c++)
 		{ // x-coordinate
 			for (int channel = 0; channel < 3; channel++)
 			{
-				unsigned char blue = getPixelValue(skyTextureIMG, c, r, 0);
-				unsigned char green = getPixelValue(skyTextureIMG, c, r, 1);
-				unsigned char red = getPixelValue(skyTextureIMG, c, r, 2);
+				unsigned char blue = getPixelValue(skyImage, c, r, 0);
+				unsigned char green = getPixelValue(skyImage, c, r, 1);
+				unsigned char red = getPixelValue(skyImage, c, r, 2);
 				sky[r][c][0] = red;
 				sky[r][c][1] = green;
 				sky[r][c][2] = blue;
 			}
 		}
 	}
-	glGenTextures(1, &skyTexture);
-	glBindTexture(GL_TEXTURE_2D, skyTexture);
+	glGenTextures(1, &skyTextureID);
+	glBindTexture(GL_TEXTURE_2D, skyTextureID);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -212,7 +220,7 @@ void skyInit()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, skyTextureIMG.cols, skyTextureIMG.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, sky);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, skyImage.cols, skyImage.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, sky);
 }
 
 void myinit()
@@ -224,72 +232,51 @@ void myinit()
 	// interpolate colors during rasterization
 	glShadeModel(GL_SMOOTH);
 
-	groundInit();
-	skyInit();
+	GroundTextureInit();
+	SkyTextureInit();
+	trackRenderer.InitializeRenderer(g_Splines[0], groundTextureID, skyTextureID);
 }
 
-void render()
+void RenderWorld()
 {
-	// ground
-	{
-		glTranslated(100.0, 0.0, 0.0);
-		glBindTexture(GL_TEXTURE_2D, groundTexture);
-		glEnable(GL_TEXTURE_2D);
-		glBegin(GL_QUADS);
-		glTexCoord2d(0.0, 0.0);
-		glVertex3d(-192, -108, -10);
-		glTexCoord2d(0.0, 1.0);
-		glVertex3d(-192, 108, -10);
-		glTexCoord2d(1.0, 1.0);
-		glVertex3d(192, 108, -10);
-		glTexCoord2d(1.0, 0.0);
-		glVertex3d(192, -108, -10);
-		glEnd();
-		glDisable(GL_TEXTURE_2D);
-	}
+	trackRenderer.Render();
+}
 
-	// sky
-	{
-		glRotated(180.0, 1, 0, 0);
-		glBindTexture(GL_TEXTURE_2D, skyTexture);
-		glEnable(GL_TEXTURE_2D);
-		GLUquadric *qobj = gluNewQuadric();
-		gluQuadricTexture(qobj, GL_TRUE);
-		gluSphere(qobj, 200, 20, 20);
-		gluDeleteQuadric(qobj);
-		glDisable(GL_TEXTURE_2D);
-	}
+double GetDeltaTime()
+{
+	using namespace std::chrono;
+	static auto prev = high_resolution_clock::now();
+	auto now = std::chrono::high_resolution_clock::now();
+	auto deltaTime = std::chrono::duration_cast<std::chrono::milliseconds>(now - prev).count() / 1000.0;
+	prev = now;
+	return deltaTime;
 }
 
 void UpdateCamera()
 {
-	using namespace std::chrono;
-	static double incrementPerSecond = 0.4;
-	static double currentT = 0.0;
-	static int currentSegmentIndex = 0;
-	static auto currentCatmull = Catmull(g_Splines[0].points[currentSegmentIndex + 0], g_Splines[0].points[currentSegmentIndex + 1], g_Splines[0].points[currentSegmentIndex + 2], g_Splines[0].points[currentSegmentIndex + 3]);
-	if (!g_iNumOfSplines)
+	static bool finished = false;
+	static double deltaPerSecond = 0.4;
+	static double t = 0.0;
+	static int segmentI = 0;
+	static auto currentCatmull = Catmull(g_Splines[0].points[segmentI + 0], g_Splines[0].points[segmentI + 1], g_Splines[0].points[segmentI + 2], g_Splines[0].points[segmentI + 3]);
+	if (!g_iNumOfSplines || finished)
 	{
 		return;
 	}
-	static auto start(std::chrono::high_resolution_clock::now());
-	auto end(std::chrono::high_resolution_clock::now());
-	auto duration(std::chrono::duration_cast<std::chrono::milliseconds>(end - start));
-	start = end;
-	auto increment = incrementPerSecond * duration.count() / 1000.0;
-	currentT += increment;
-	if (currentT > 1.0)
+	auto delta = deltaPerSecond * GetDeltaTime();
+	t += delta;
+	if (t > 1.0)
 	{
-		currentT = 0.0;
-		currentSegmentIndex += 1;
-		if (currentSegmentIndex > g_Splines[0].numControlPoints - 3)
+		t = 0.0;
+		segmentI += 1;
+		if (segmentI > g_Splines[0].numControlPoints - 3)
 		{
-			currentSegmentIndex = 0;
+			finished = true;
 		}
-		currentCatmull = Catmull(g_Splines[0].points[currentSegmentIndex + 0], g_Splines[0].points[currentSegmentIndex + 1], g_Splines[0].points[currentSegmentIndex + 2], g_Splines[0].points[currentSegmentIndex + 3]);
+		currentCatmull = Catmull(g_Splines[0].points[segmentI + 0], g_Splines[0].points[segmentI + 1], g_Splines[0].points[segmentI + 2], g_Splines[0].points[segmentI + 3]);
 	}
-	auto eye = currentCatmull.GetPoint(currentT);
-	auto T = currentCatmull.GetNormalizedTangent(currentT);
+	auto eye = currentCatmull.GetPoint(t);
+	auto T = currentCatmull.GetNormalizedTangent(t);
 	gluLookAt(eye.x, eye.y, eye.z, T.x + eye.x, T.y + eye.y, T.z + eye.z, 0, 0, 1);
 }
 
@@ -300,7 +287,8 @@ void display()
 
 	UpdateCamera();
 
-	render();
+	RenderWorld();
+
 	glutSwapBuffers();
 }
 
@@ -309,7 +297,7 @@ void reshape(int x, int y)
 	glViewport(0, 0, x, y);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	gluPerspective(60.0, 1.0 * x / y, 0.1, 1000.0);
+	gluPerspective(60.0, 1.0 * x / y, 0.01, 1000.0);
 	glMatrixMode(GL_MODELVIEW);
 }
 
