@@ -301,7 +301,10 @@ void UpdateCamera()
 		{
 			finished = true;
 		}
-		currentCatmull = Catmull(g_Splines[0].points[segmentI + 0], g_Splines[0].points[segmentI + 1], g_Splines[0].points[segmentI + 2], g_Splines[0].points[segmentI + 3]);
+		else
+		{
+			currentCatmull = Catmull(g_Splines[0].points[segmentI + 0], g_Splines[0].points[segmentI + 1], g_Splines[0].points[segmentI + 2], g_Splines[0].points[segmentI + 3]);
+		}
 	}
 	auto eye = currentCatmull.GetPoint(t);
 	UpdateNormal(t, currentCatmull);
