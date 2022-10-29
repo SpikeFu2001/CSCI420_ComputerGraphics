@@ -269,7 +269,7 @@ void UpdateCamera()
 	{
 		t = 0.0;
 		segmentI += 1;
-		if (segmentI > g_Splines[0].numControlPoints - 3)
+		if (segmentI >= g_Splines[0].numControlPoints - 3)
 		{
 			finished = true;
 		}
