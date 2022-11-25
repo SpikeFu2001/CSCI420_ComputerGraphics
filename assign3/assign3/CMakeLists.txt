@@ -21,7 +21,7 @@ use_props(${PROJECT_NAME} "${CMAKE_CONFIGURATION_TYPES}" "${DEFAULT_CXX_PROPS}")
 set(ROOT_NAMESPACE assign3)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
-    VS_GLOBAL_KEYWORD "Win32Proj"
+    VS_GLOBAL_KEYWORD "win32Proj"
 )
 set_target_properties(${PROJECT_NAME} PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE "TRUE"
@@ -45,7 +45,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     "$<$<CONFIG:Release>:"
         "NDEBUG"
     ">"
-    "WIN32;"
+    "win32;"
     "_CONSOLE;"
     "UNICODE;"
     "_UNICODE"
