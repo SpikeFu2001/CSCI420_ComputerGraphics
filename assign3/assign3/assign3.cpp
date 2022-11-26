@@ -26,6 +26,8 @@ Name: <Your name here>
 #define MAX_SPHERES 10
 #define MAX_LIGHTS 10
 #define EPSILON 0.000000001
+#define MAX_RAY_DEPTH 1
+#define REFLECT_OFFSET 0.0001
 
 char *filename = 0;
 
@@ -35,8 +37,8 @@ char *filename = 0;
 int mode = MODE_DISPLAY;
 
 // you may want to make these smaller for debugging purposes
-#define WIDTH 1920
-#define HEIGHT 1080
+#define WIDTH 1280
+#define HEIGHT 960
 
 // the field of view of the camera
 #define fov 60.0
@@ -96,10 +98,11 @@ void plot_pixel_display(int x, int y, unsigned char r, unsigned char g, unsigned
 void plot_pixel_jpeg(int x, int y, unsigned char r, unsigned char g, unsigned char b);
 void plot_pixel(int x, int y, unsigned char r, unsigned char g, unsigned char b);
 void ray_cast(int x, int y);
+Vector3 ray_cast(Ray &ray, size_t depth);
 double hit(Ray &ray, Sphere &sphere);
 double hit(Ray &ray, Triangle &triangle);
-Vector3 get_color_of_ray(Ray &ray, Sphere &sphere);
-Vector3 get_color_of_ray(Ray &ray, Triangle &triangle);
+Vector3 get_color_of_ray(Ray &ray, Sphere &sphere, size_t depth);
+Vector3 get_color_of_ray(Ray &ray, Triangle &triangle, size_t depth);
 Vector3 phong_model(Vector3 &light_color, Vector3 &color_diffuse, Vector3 &l, Vector3 &n, Vector3 &color_specular, Vector3 &r, Vector3 &v, double shininess);
 Vector3 ShadowRay(Vector3 &pi, Vector3 &n, Vector3 &color_diffuse, Vector3 &color_specular, Vector3 &v, double shininess);
 
@@ -110,7 +113,7 @@ Vector3 ShadowRay(Vector3 &pi, Vector3 &n, Vector3 &color_diffuse, Vector3 &colo
   {
     auto &light = lights[i];
     Ray l{pi, glm::normalize(light.position - pi)};
-    l.p += 0.001 * l.d;
+    l.p += REFLECT_OFFSET * l.d;
     auto light_distance = glm::length(light.position - pi);
     bool blocked = false;
     for (int j = 0; j < num_spheres; j++)
@@ -141,7 +144,7 @@ Vector3 ShadowRay(Vector3 &pi, Vector3 &n, Vector3 &color_diffuse, Vector3 &colo
     {
       continue;
     }
-    auto r = 2 * dot(l.d, n) * n - l.d;
+    auto r = glm::reflect(l.d, n) * -1.0;
     color += phong_model(light.color, color_diffuse, l.d, n, color_specular, r, v, shininess);
   }
   return color;
@@ -225,7 +228,7 @@ double hit(Ray &ray, Sphere &sphere)
   return std::min(t0, t1);
 }
 
-Vector3 get_color_of_ray(Ray &ray, Sphere &sphere)
+Vector3 get_color_of_ray(Ray &ray, Sphere &sphere, size_t depth = 0)
 {
   auto a = 1.0;
   auto x0xc = ray.p - sphere.position;
@@ -255,10 +258,22 @@ Vector3 get_color_of_ray(Ray &ray, Sphere &sphere)
   auto pi = ray.p + t * ray.d;
   auto n = 1.0 / sphere.radius * (pi - sphere.position);
   auto v = ray.d * -1.0;
-  return ShadowRay(pi, n, sphere.color_diffuse, sphere.color_specular, v, sphere.shininess);
+  Vector3 r = glm::reflect(v, n) * -1.0;
+  auto local = ShadowRay(pi, n, sphere.color_diffuse, sphere.color_specular, v, sphere.shininess);
+  if (glm::all(glm::equal(local, Vector3{0, 0, 0})))
+  {
+    return local;
+  }
+  Ray reflect_ray = {pi + REFLECT_OFFSET * r, r};
+  auto reflect = ray_cast(reflect_ray, depth + 1);
+  if (glm::all(glm::equal(reflect, Vector3{0, 0, 0})))
+  {
+    return local;
+  }
+  return (Vector3({1.0, 1.0, 1.0}) - sphere.color_specular) * local + sphere.color_specular * reflect;
 }
 
-Vector3 get_color_of_ray(Ray &ray, Triangle &triangle)
+Vector3 get_color_of_ray(Ray &ray, Triangle &triangle, size_t depth = 0)
 {
   auto &A = triangle.v[0].position;
   auto &B = triangle.v[1].position;
@@ -321,8 +336,20 @@ Vector3 get_color_of_ray(Ray &ray, Triangle &triangle)
   auto diffuse = alpha * color_diffuse_A + beta * color_diffuse_B + gamma * color_diffuse_C;
   auto specular = alpha * color_specular_A + beta * color_specular_B + gamma * color_specular_C;
   auto shininess = alpha * triangle.v[0].shininess + beta * triangle.v[1].shininess + gamma * triangle.v[2].shininess;
+  Vector3 r = glm::reflect(v, n) * -1.0;
   n = glm::normalize(alpha * NA + beta * NB + gamma * NC);
-  return ShadowRay(Q, n, diffuse, specular, v, shininess);
+  auto local = ShadowRay(Q, n, diffuse, specular, v, shininess);
+  if (glm::all(glm::equal(local, Vector3{0, 0, 0})))
+  {
+    return local;
+  }
+  Ray reflect_ray = {Q + REFLECT_OFFSET * r, r};
+  auto reflect = ray_cast(reflect_ray, depth + 1);
+  if (glm::all(glm::equal(reflect, Vector3{0, 0, 0})))
+  {
+    return local;
+  }
+  return (Vector3({1, 1, 1}) - specular) * local + specular * reflect;
 }
 
 void ray_cast(int x, int y)
@@ -367,8 +394,55 @@ void ray_cast(int x, int y)
   y += HEIGHT / 2;
   for (int i = 0; i < 3; i++)
   {
-    buffer[y][x][i] = closest_sphere || closest_triangle ? glm::clamp(color[i], 0.0, 1.0) * 255.0f : 255;
+    if (closest_sphere || closest_triangle)
+      buffer[y][x][i] = glm::clamp(color[i], 0.0, 1.0) * 255.0f;
+    else
+      buffer[y][x][i] = 255;
   }
+}
+
+Vector3 ray_cast(Ray &ray, size_t depth)
+{
+  if (depth >= MAX_RAY_DEPTH)
+  {
+    return {0, 0, 0};
+  }
+  Vector3 color{ambient_light};
+  double min_sphere_t = INFINITY;
+  Sphere *closest_sphere = nullptr;
+  for (int i = 0; i < num_spheres; i++)
+  {
+    auto t = hit(ray, spheres[i]);
+    if (t < min_sphere_t)
+    {
+      min_sphere_t = t;
+      closest_sphere = &(spheres[i]);
+    }
+  }
+  double min_triangle_t = INFINITY;
+  Triangle *closest_triangle = nullptr;
+  for (int i = 0; i < num_triangles; i++)
+  {
+    auto t = hit(ray, triangles[i]);
+    if (t < min_triangle_t)
+    {
+      min_triangle_t = t;
+      closest_triangle = &(triangles[i]);
+    }
+  }
+  if (min_triangle_t < min_sphere_t && closest_triangle)
+  {
+    color += get_color_of_ray(ray, *closest_triangle, depth);
+  }
+  else if (closest_sphere)
+  {
+    color += get_color_of_ray(ray, *closest_sphere, depth);
+  }
+  if (closest_sphere || closest_triangle)
+    return glm::clamp(color, 0.0, 1.0);
+  else
+    return {1.0, 1.0, 1.0};
+  return color;
 }
 
 // MODIFY THIS FUNCTION
