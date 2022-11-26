@@ -26,7 +26,7 @@ Name: <Your name here>
 #define MAX_SPHERES 10
 #define MAX_LIGHTS 10
 #define EPSILON 0.000000001
-#define MAX_RAY_DEPTH 1
+#define MAX_RAY_DEPTH 100
 #define REFLECT_OFFSET 0.0001
 
 char *filename = 0;

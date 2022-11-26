@@ -8,7 +8,7 @@
             // Resolved by CMake Tools:
             "program": "${command:cmake.launchTargetPath}",
             "args": [
-                "examples/SIGGRAPH.scene"
+                "examples/table.scene"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/assign3",
