@@ -98,8 +98,8 @@ void plot_pixel(int x, int y, unsigned char r, unsigned char g, unsigned char b)
 void ray_cast(int x, int y);
 double hit(Ray &ray, Sphere &sphere);
 double hit(Ray &ray, Triangle &triangle);
-Vector3 get_color_contribution(Ray &ray, Sphere &sphere);
-Vector3 get_color_contribution(Ray &ray, Triangle &triangle);
+Vector3 get_color_of_ray(Ray &ray, Sphere &sphere);
+Vector3 get_color_of_ray(Ray &ray, Triangle &triangle);
 Vector3 phong_model(Vector3 &light_color, Vector3 &color_diffuse, Vector3 &l, Vector3 &n, Vector3 &color_specular, Vector3 &r, Vector3 &v, double shininess);
 Vector3 ShadowRay(Vector3 &pi, Vector3 &n, Vector3 &color_diffuse, Vector3 &color_specular, Vector3 &v, double shininess);
 
@@ -225,7 +225,7 @@ double hit(Ray &ray, Sphere &sphere)
   return std::min(t0, t1);
 }
 
-Vector3 get_color_contribution(Ray &ray, Sphere &sphere)
+Vector3 get_color_of_ray(Ray &ray, Sphere &sphere)
 {
   auto a = 1.0;
   auto x0xc = ray.p - sphere.position;
@@ -258,7 +258,7 @@ Vector3 get_color_contribution(Ray &ray, Sphere &sphere)
   return ShadowRay(pi, n, sphere.color_diffuse, sphere.color_specular, v, sphere.shininess);
 }
 
-Vector3 get_color_contribution(Ray &ray, Triangle &triangle)
+Vector3 get_color_of_ray(Ray &ray, Triangle &triangle)
 {
   auto &A = triangle.v[0].position;
   auto &B = triangle.v[1].position;
@@ -357,11 +357,11 @@ void ray_cast(int x, int y)
   }
   if (min_triangle_t < min_sphere_t && closest_triangle)
   {
-    color += get_color_contribution(ray, *closest_triangle);
+    color += get_color_of_ray(ray, *closest_triangle);
   }
   else if (closest_sphere)
   {
-    color += get_color_contribution(ray, *closest_sphere);
+    color += get_color_of_ray(ray, *closest_sphere);
   }
   x += WIDTH / 2;
   y += HEIGHT / 2;
