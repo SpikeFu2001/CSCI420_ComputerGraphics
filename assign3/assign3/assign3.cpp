@@ -44,6 +44,7 @@ int mode = MODE_DISPLAY;
 #define fov 60.0
 
 unsigned char buffer[HEIGHT][WIDTH][3];
+unsigned char screen[HEIGHT][WIDTH][3];
 using Vector3 = glm::vec<3, double>;
 
 struct Vertex
@@ -395,9 +396,9 @@ void ray_cast(int x, int y)
   for (int i = 0; i < 3; i++)
   {
     if (closest_sphere || closest_triangle)
-      buffer[y][x][i] = glm::clamp(color[i], 0.0, 1.0) * 255.0f;
+      screen[y][x][i] = glm::clamp(color[i], 0.0, 1.0) * 255.0f;
     else
-      buffer[y][x][i] = 255;
+      screen[y][x][i] = 255;
   }
 }
 
@@ -462,7 +463,7 @@ void draw_scene()
     glBegin(GL_POINTS);
     for (y = 0; y < HEIGHT; y++)
     {
-      plot_pixel(x, y, buffer[y][x][0], buffer[y][x][1], buffer[y][x][2]);
+      plot_pixel(x, y, screen[y][x][0], screen[y][x][1], screen[y][x][2]);
     }
     glEnd();
     glFlush();
