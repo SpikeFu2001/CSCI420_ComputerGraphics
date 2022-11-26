@@ -25,6 +25,7 @@ Name: <Your name here>
 #define MAX_TRIANGLES 2000
 #define MAX_SPHERES 10
 #define MAX_LIGHTS 10
+#define EPSILON 0.000000001
 
 char *filename = 0;
 
@@ -96,12 +97,107 @@ void plot_pixel_jpeg(int x, int y, unsigned char r, unsigned char g, unsigned ch
 void plot_pixel(int x, int y, unsigned char r, unsigned char g, unsigned char b);
 void ray_cast(int x, int y);
 double hit(Ray &ray, Sphere &sphere);
+double hit(Ray &ray, Triangle &triangle);
 Vector3 get_color_contribution(Ray &ray, Sphere &sphere);
-Vector3 phong_model(Vector3 &light_color, Vector3 &color_diffuse, double l_dot_n, Vector3 &color_specular, double r_dot_v, double shininess);
+Vector3 get_color_contribution(Ray &ray, Triangle &triangle);
+Vector3 phong_model(Vector3 &light_color, Vector3 &color_diffuse, Vector3 &l, Vector3 &n, Vector3 &color_specular, Vector3 &r, Vector3 &v, double shininess);
+Vector3 ShadowRay(Vector3 &pi, Vector3 &n, Vector3 &color_diffuse, Vector3 &color_specular, Vector3 &v, double shininess);
 
-Vector3 phong_model(Vector3 &light_color, Vector3 &color_diffuse, double l_dot_n, Vector3 &color_specular, double r_dot_v, double shininess)
+Vector3 ShadowRay(Vector3 &pi, Vector3 &n, Vector3 &color_diffuse, Vector3 &color_specular, Vector3 &v, double shininess)
 {
-  return light_color * (color_diffuse * l_dot_n + color_specular * glm::pow(r_dot_v, shininess));
+  Vector3 color{0, 0, 0};
+  for (int i = 0; i < num_lights; i++)
+  {
+    auto &light = lights[i];
+    Ray l{pi, glm::normalize(light.position - pi)};
+    l.p += 0.001 * l.d;
+    auto light_distance = glm::length(light.position - pi);
+    bool blocked = false;
+    for (int j = 0; j < num_spheres; j++)
+    {
+      auto &s = spheres[j];
+      auto ret = hit(l, s);
+      if (ret != INFINITY && ret < light_distance)
+      {
+        blocked = true;
+        break;
+      }
+    }
+    if (blocked)
+    {
+      continue;
+    }
+    for (int j = 0; j < num_triangles; j++)
+    {
+      auto &tri = triangles[j];
+      auto ret = hit(l, tri);
+      if (ret != INFINITY && ret < light_distance)
+      {
+        blocked = true;
+        break;
+      }
+    }
+    if (blocked)
+    {
+      continue;
+    }
+    auto r = 2 * dot(l.d, n) * n - l.d;
+    color += phong_model(light.color, color_diffuse, l.d, n, color_specular, r, v, shininess);
+  }
+  return color;
+}
+
+Vector3 phong_model(Vector3 &light_color, Vector3 &color_diffuse, Vector3 &l, Vector3 &n, Vector3 &color_specular, Vector3 &r, Vector3 &v, double shininess)
+{
+  return light_color * (color_diffuse * glm::clamp(glm::dot(l, n), 0.0, 1.0) + color_specular * glm::pow(glm::clamp(glm::dot(r, v), 0.0, 1.0), shininess));
+}
+
+double hit(Ray &ray, Triangle &triangle)
+{
+  auto &A = triangle.v[0].position;
+  auto &B = triangle.v[1].position;
+  auto &C = triangle.v[2].position;
+  auto &NA = triangle.v[0].normal;
+  auto &NB = triangle.v[1].normal;
+  auto &NC = triangle.v[2].normal;
+  auto AB = B - A;
+  auto AC = C - A;
+  auto n = glm::normalize(glm::cross(AB, AC));
+  auto d = glm::dot(n, A);
+  auto n_dot_d = glm::dot(n, ray.d);
+
+  if (glm::epsilonEqual(n_dot_d, 0.0, EPSILON))
+  {
+    return INFINITY;
+  }
+
+  auto t = (d - glm::dot(n, ray.p)) / n_dot_d;
+  if (t < 0.0)
+  {
+    return INFINITY;
+  }
+
+  auto Q = ray.p + ray.d * t;
+
+  auto QBC = glm::dot(glm::cross(C - B, Q - B), n);
+  if (QBC < 0)
+  {
+    return INFINITY;
+  }
+
+  auto AQC = glm::dot(glm::cross(A - C, Q - C), n);
+  if (AQC < 0)
+  {
+    return INFINITY;
+  }
+
+  auto ABQ = glm::dot(glm::cross(B - A, Q - A), n);
+  if (ABQ < 0)
+  {
+    return INFINITY;
+  }
+
+  return t;
 }
 
 double hit(Ray &ray, Sphere &sphere)
@@ -159,32 +255,74 @@ Vector3 get_color_contribution(Ray &ray, Sphere &sphere)
   auto pi = ray.p + t * ray.d;
   auto n = 1.0 / sphere.radius * (pi - sphere.position);
   auto v = ray.d * -1.0;
+  return ShadowRay(pi, n, sphere.color_diffuse, sphere.color_specular, v, sphere.shininess);
+}
+
+Vector3 get_color_contribution(Ray &ray, Triangle &triangle)
+{
+  auto &A = triangle.v[0].position;
+  auto &B = triangle.v[1].position;
+  auto &C = triangle.v[2].position;
+  auto &NA = triangle.v[0].normal;
+  auto &NB = triangle.v[1].normal;
+  auto &NC = triangle.v[2].normal;
+  auto color_diffuse_A = triangle.v[0].color_diffuse;
+  auto color_diffuse_B = triangle.v[1].color_diffuse;
+  auto color_diffuse_C = triangle.v[2].color_diffuse;
+  auto color_specular_A = triangle.v[0].color_specular;
+  auto color_specular_B = triangle.v[1].color_specular;
+  auto color_specular_C = triangle.v[2].color_specular;
+
+  auto AB = B - A;
+  auto AC = C - A;
+  auto n = glm::normalize(glm::cross(AB, AC));
+  auto d = glm::dot(n, A);
+  auto n_dot_d = glm::dot(n, ray.d);
   Vector3 color{0, 0, 0};
-  for (int i = 0; i < num_lights; i++)
+
+  if (glm::epsilonEqual(n_dot_d, 0.0, EPSILON))
   {
-    auto &light = lights[i];
-    Ray l{pi, glm::normalize(light.position - pi)};
-    l.p += 0.001 * l.d;
-    auto light_distance = glm::length(light.position - pi);
-    bool blocked = false;
-    for (int j = 0; j < num_spheres; j++)
-    {
-      auto &s = spheres[j];
-      auto ret = hit(l, s);
-      if (ret != INFINITY && ret < light_distance)
-      {
-        blocked = true;
-        break;
-      }
-    }
-    if (blocked)
-    {
-      continue;
-    }
-    auto r = 2 * dot(l.d, n) * n - l.d;
-    color += phong_model(light.color, sphere.color_diffuse, glm::clamp(glm::dot(l.d, n), 0.0, 1.0), sphere.color_specular, glm::clamp(glm::dot(r, v), 0.0, 1.0), sphere.shininess);
+    return color;
   }
-  return color;
+
+  auto t = (d - glm::dot(n, ray.p)) / n_dot_d;
+  if (t < 0.0)
+  {
+    return color;
+  }
+
+  auto Q = ray.p + ray.d * t;
+
+  auto QBC = glm::dot(glm::cross(C - B, Q - B), n);
+  if (QBC < 0)
+  {
+    return color;
+  }
+
+  auto AQC = glm::dot(glm::cross(A - C, Q - C), n);
+  if (AQC < 0)
+  {
+    return color;
+  }
+
+  auto ABQ = glm::dot(glm::cross(B - A, Q - A), n);
+  if (ABQ < 0)
+  {
+    return color;
+  }
+
+  auto ABC = glm::dot(glm::cross(AB, AC), n);
+
+  auto alpha = QBC / ABC;
+  auto beta = AQC / ABC;
+  auto gamma = ABQ / ABC;
+
+  auto v = ray.d * -1.0;
+  auto diffuse = alpha * color_diffuse_A + beta * color_diffuse_B + gamma * color_diffuse_C;
+  auto specular = alpha * color_specular_A + beta * color_specular_B + gamma * color_specular_C;
+  auto shininess = alpha * triangle.v[0].shininess + beta * triangle.v[1].shininess + gamma * triangle.v[2].shininess;
+  n = glm::normalize(alpha * NA + beta * NB + gamma * NC);
+  return ShadowRay(Q, n, diffuse, specular, v, shininess);
 }
 
 void ray_cast(int x, int y)
@@ -195,18 +333,33 @@ void ray_cast(int x, int y)
   auto dy = wy * (y) / (HEIGHT / 2.0);
   Ray ray = {Vector3(0, 0, 0), glm::normalize(Vector3(dx, dy, -1))};
   Vector3 color{ambient_light};
-  double minSphereTime = INFINITY;
+  double min_sphere_t = INFINITY;
   Sphere *closest_sphere = nullptr;
   for (int i = 0; i < num_spheres; i++)
   {
     auto t = hit(ray, spheres[i]);
-    if (t < minSphereTime)
+    if (t < min_sphere_t)
     {
-      t = minSphereTime;
+      min_sphere_t = t;
       closest_sphere = &(spheres[i]);
     }
   }
-  if (closest_sphere)
+  double min_triangle_t = INFINITY;
+  Triangle *closest_triangle = nullptr;
+  for (int i = 0; i < num_triangles; i++)
+  {
+    auto t = hit(ray, triangles[i]);
+    if (t < min_triangle_t)
+    {
+      min_triangle_t = t;
+      closest_triangle = &(triangles[i]);
+    }
+  }
+  if (min_triangle_t < min_sphere_t && closest_triangle)
+  {
+    color += get_color_contribution(ray, *closest_triangle);
+  }
+  else if (closest_sphere)
   {
     color += get_color_contribution(ray, *closest_sphere);
   }
@@ -214,7 +367,7 @@ void ray_cast(int x, int y)
   y += HEIGHT / 2;
   for (int i = 0; i < 3; i++)
   {
-    buffer[y][x][i] = closest_sphere ? glm::clamp(color[i], 0.0, 1.0) * 255.0f : 255;
+    buffer[y][x][i] = closest_sphere || closest_triangle ? glm::clamp(color[i], 0.0, 1.0) * 255.0f : 255;
   }
 }
 
