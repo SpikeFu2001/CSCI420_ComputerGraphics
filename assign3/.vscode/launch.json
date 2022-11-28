@@ -8,8 +8,7 @@
             // Resolved by CMake Tools:
             "program": "${command:cmake.launchTargetPath}",
             "args": [
-                "examples/test2.scene",
-                "test2_recursive.jpg"
+                "examples/SIGGRAPH.scene",
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/assign3",
