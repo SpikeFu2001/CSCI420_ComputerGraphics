@@ -2,7 +2,7 @@ Assignment #3: Ray tracing
 
 
 
-FULL NAME: Meiwen Fu
+FULL NAME: Spike Fu
 
 
 

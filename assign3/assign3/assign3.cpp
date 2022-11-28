@@ -12,6 +12,8 @@ Name: <Your name here>
 #include <glm/glm/glm.hpp>
 #include <glm/glm/gtx/norm.hpp>
 #include <algorithm>
+#include <thread>
+#include <vector>
 
 #include <stdio.h>
 #include <string>
@@ -42,6 +44,8 @@ int mode = MODE_DISPLAY;
 
 // the field of view of the camera
 #define fov 60.0
+
+const auto processor_count = std::thread::hardware_concurrency();
 
 unsigned char buffer[HEIGHT][WIDTH][3];
 unsigned char screen[HEIGHT][WIDTH][3];
@@ -106,6 +110,7 @@ Vector3 get_color_of_ray(Ray &ray, Sphere &sphere, size_t depth);
 Vector3 get_color_of_ray(Ray &ray, Triangle &triangle, size_t depth);
 Vector3 phong_model(Vector3 &light_color, Vector3 &color_diffuse, Vector3 &l, Vector3 &n, Vector3 &color_specular, Vector3 &r, Vector3 &v, double shininess);
 Vector3 ShadowRay(Vector3 &pi, Vector3 &n, Vector3 &color_diffuse, Vector3 &color_specular, Vector3 &v, double shininess);
+void thread_func(int start);
 
 Vector3 ShadowRay(Vector3 &pi, Vector3 &n, Vector3 &color_diffuse, Vector3 &color_specular, Vector3 &v, double shininess)
 {
@@ -446,17 +451,36 @@ Vector3 ray_cast(Ray &ray, size_t depth)
   return color;
 }
 
-// MODIFY THIS FUNCTION
-void draw_scene()
+void thread_func(int start)
 {
-  unsigned int x, y;
-  for (x = 0; x < WIDTH; x++)
+  auto lines_per_core = WIDTH / processor_count;
+  if (WIDTH % lines_per_core)
   {
-    for (y = 0; y < HEIGHT; y++)
+    lines_per_core = (lines_per_core * processor_count + lines_per_core) / processor_count;
+  }
+  for (unsigned int x = start * lines_per_core; x < start * lines_per_core + lines_per_core && x < WIDTH; x++)
+  {
+    for (unsigned int y = 0; y < HEIGHT; y++)
     {
       ray_cast(x, y);
     }
   }
+}
+
+// MODIFY THIS FUNCTION
+void draw_scene()
+{
+  std::vector<std::thread> threads;
+  threads.reserve(processor_count);
+  for (unsigned int i = 0; i < processor_count; i++)
+  {
+    threads.push_back(std::thread(thread_func, i));
+  }
+  for (unsigned int i = 0; i < processor_count; i++)
+  {
+    threads[i].join();
+  }
+  unsigned int x, y;
   for (x = 0; x < WIDTH; x++)
   {
     glPointSize(2.0);
