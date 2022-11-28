@@ -2,7 +2,7 @@ Assignment #3: Ray tracing
 
 
 
-FULL NAME: !!!replaceme!!!
+FULL NAME: Meiwen Fu
 
 
 
@@ -23,22 +23,22 @@ Feature:                                 Status: finish? (yes/no)
 
 -------------------------------------    -------------------------
 
-1) Ray tracing triangles                  !!!no, explain!!!
+1) Ray tracing triangles                  yes
 
 
-2) Ray tracing sphere                     !!!no, explain!!!
+2) Ray tracing sphere                     yes
 
 
-3) Triangle Phong Shading                 !!!no, explain!!!
+3) Triangle Phong Shading                 yes
 
 
-4) Sphere Phong Shading                   !!!no, explain!!!
+4) Sphere Phong Shading                   yes
 
 
-5) Shadows rays                           !!!no, explain!!!
+5) Shadows rays                           yes
 
 
-6) Still images                           !!!no, explain!!!
+6) Still images                           yes
    
 
 7) Extra Credit (up to 10 points)
